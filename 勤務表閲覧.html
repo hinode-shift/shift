@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>勤務表 閲覧</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0f1117;--bg2:#171b26;--bg3:#1e2336;
+  --border:#2a3050;--border2:#3a4570;
+  --text:#dde2f0;--text2:#7c86a8;--text3:#3a4060;
+  --acc:#4f8ef7;--grn:#2ecc8a;--red:#f06060;--amb:#f0a020;
+  --pur:#a07ef5;--pink:#f06090;--teal:#20c8b8;
+  --ny:#4f8ef7;--ts:#2ecc8a;--gh:#a07ef5;--ji:#7090b0;
+  --sun:rgba(240,96,96,.15);--sat:rgba(79,142,247,.13);
+  --radius:12px;
+}
+
+body{
+  font-family:'Noto Sans JP',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;font-size:14px;
+  overflow-x:hidden;
+}
+
+/* ── LOGIN ── */
+#login-screen{
+  position:fixed;inset:0;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  z-index:1000;
+  padding:24px;
+}
+.login-card{
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:20px;
+  padding:36px 28px;
+  width:100%;max-width:360px;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.login-logo{
+  font-family:'DM Mono',monospace;
+  font-size:11px;letter-spacing:.2em;
+  color:var(--text3);text-transform:uppercase;
+  margin-bottom:6px;
+}
+.login-title{
+  font-size:22px;font-weight:700;
+  margin-bottom:4px;
+}
+.login-sub{
+  font-size:12px;color:var(--text2);margin-bottom:28px;
+}
+.pin-dots{
+  display:flex;gap:12px;justify-content:center;
+  margin-bottom:24px;
+}
+.pin-dot{
+  width:14px;height:14px;
+  border-radius:50%;
+  background:var(--bg3);
+  border:2px solid var(--border2);
+  transition:all .15s;
+}
+.pin-dot.filled{background:var(--acc);border-color:var(--acc);}
+.pin-dot.error{background:var(--red);border-color:var(--red);}
+.numpad{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.num-btn{
+  background:var(--bg3);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:12px;
+  padding:16px 8px;
+  font-size:20px;font-weight:500;
+  cursor:pointer;
+  font-family:'DM Mono',monospace;
+  transition:all .12s;
+  user-select:none;
+}
+.num-btn:active{background:var(--border2);transform:scale(.95);}
+.num-btn.del{font-size:16px;color:var(--text2);}
+.num-btn.empty{background:transparent;border-color:transparent;pointer-events:none;}
+.login-err{
+  color:var(--red);font-size:12px;margin-top:12px;
+  min-height:18px;
+}
+
+/* ── HEADER ── */
+header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(15,17,23,.92);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:10px 14px;
+  display:flex;align-items:center;gap:10px;
+}
+.h-logo{
+  font-family:'DM Mono',monospace;
+  font-size:11px;letter-spacing:.15em;
+  color:var(--text3);text-transform:uppercase;
+}
+.h-month-nav{
+  display:flex;align-items:center;gap:6px;
+  margin-left:auto;
+}
+.h-month-btn{
+  width:30px;height:30px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);border-radius:8px;
+  cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .12s;
+}
+.h-month-btn:active{background:var(--border2);}
+.h-month-btn:disabled{opacity:.3;pointer-events:none;}
+.h-month-label{
+  font-family:'DM Mono',monospace;
+  font-size:13px;font-weight:500;
+  min-width:80px;text-align:center;
+}
+.h-back{
+  padding:5px 10px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);border-radius:8px;
+  cursor:pointer;font-size:12px;
+  font-family:'Noto Sans JP',sans-serif;
+  display:none;align-items:center;gap:4px;
+  transition:all .12s;
+}
+.h-back.show{display:flex;}
+.h-back:active{background:var(--border2);}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;
+  padding:8px 12px 0;
+  gap:4px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg2);
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{
+  padding:7px 14px;border-radius:8px 8px 0 0;
+  font-size:12px;font-weight:500;
+  cursor:pointer;color:var(--text2);
+  background:transparent;border:none;
+  font-family:'Noto Sans JP',sans-serif;
+  white-space:nowrap;
+  border-bottom:2px solid transparent;
+  transition:all .12s;
+}
+.tab-btn.on{color:var(--acc);border-bottom-color:var(--acc);}
+
+/* ── DEPT FILTER ── */
+.dept-filter{
+  display:flex;gap:6px;padding:10px 12px;
+  overflow-x:auto;scrollbar-width:none;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+}
+.dept-filter::-webkit-scrollbar{display:none;}
+.dept-btn{
+  padding:5px 12px;border-radius:20px;
+  font-size:11px;font-weight:600;
+  cursor:pointer;white-space:nowrap;
+  border:1px solid var(--border2);
+  background:transparent;color:var(--text2);
+  font-family:'Noto Sans JP',sans-serif;
+  transition:all .12s;
+}
+.dept-btn:active{opacity:.7;}
+.dept-btn.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+
+/* ── SHIFT TABLE（全員表示）── */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table.st{
+  border-collapse:collapse;
+  font-size:11px;min-width:100%;
+}
+.st th,.st td{border:1px solid var(--border);white-space:nowrap;}
+.st thead th{
+  background:var(--bg2);color:var(--text2);
+  font-weight:500;text-align:center;
+  padding:5px 2px;
+  position:sticky;top:0;z-index:10;
+  font-size:10px;
+}
+.st thead th.sun{color:var(--red);}
+.st thead th.sat{color:var(--acc);}
+.name-col{
+  position:sticky;left:0;z-index:5;
+  background:var(--bg2);
+  min-width:80px;max-width:80px;
+  padding:6px 8px;font-weight:500;font-size:11px;
+  cursor:pointer;
+  border-right:2px solid var(--border2);
+}
+.name-col:active{background:var(--bg3);}
+.today-col{background:rgba(79,142,247,.08)!important;}
+.today-col.sun-c{background:rgba(240,96,96,.15)!important;}
+.today-col.sat-c{background:rgba(79,142,247,.15)!important;}
+.cell{
+  text-align:center;padding:3px 1px;
+  min-width:36px;max-width:36px;
+}
+.cell.sun-c{background:var(--sun);}
+.cell.sat-c{background:var(--sat);}
+.badge{
+  display:inline-block;
+  padding:2px 3px;border-radius:3px;
+  font-size:10px;font-weight:700;
+  min-width:30px;text-align:center;
+  font-family:'DM Mono',monospace;
+}
+.dept-sep td{
+  background:var(--bg3);
+  color:var(--text3);font-size:9px;font-weight:700;
+  letter-spacing:.1em;padding:3px 8px;
+}
+
+/* ── PERSONAL VIEW ── */
+.personal-wrap{padding:12px;}
+.p-name{
+  font-size:20px;font-weight:700;
+  margin-bottom:4px;
+}
+.p-sub{font-size:12px;color:var(--text2);margin-bottom:16px;}
+.p-summary{
+  display:flex;gap:8px;flex-wrap:wrap;
+  margin-bottom:16px;
+}
+.p-chip{
+  padding:6px 12px;border-radius:20px;
+  font-size:12px;font-weight:500;
+  background:var(--bg3);border:1px solid var(--border);
+  display:flex;align-items:center;gap:5px;
+}
+.p-chip .v{
+  font-family:'DM Mono',monospace;
+  font-size:14px;font-weight:700;
+}
+.p-chip.night .v{color:var(--red);}
+.p-chip.off .v{color:var(--grn);}
+
+/* 週カードUI */
+.week-cards{display:flex;flex-direction:column;gap:8px;}
+.week-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;
+}
+.week-header{
+  padding:6px 12px;
+  background:var(--bg3);
+  font-size:11px;font-weight:600;
+  color:var(--text2);letter-spacing:.05em;
+}
+.day-row{
+  display:flex;align-items:center;
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  gap:10px;
+}
+.day-row:last-child{border-bottom:none;}
+.day-row.today-row{background:rgba(79,142,247,.06);}
+.day-num{
+  font-family:'DM Mono',monospace;
+  font-size:16px;font-weight:500;
+  min-width:28px;text-align:center;
+}
+.day-name{
+  font-size:11px;color:var(--text2);
+  min-width:20px;
+}
+.day-name.sun{color:var(--red);}
+.day-name.sat{color:var(--acc);}
+.day-shift{
+  display:flex;align-items:center;gap:8px;
+  flex:1;
+}
+.day-shift .badge{
+  font-size:12px;padding:4px 8px;
+  border-radius:6px;min-width:44px;
+}
+.day-shift-label{font-size:13px;font-weight:500;}
+.day-time{font-size:11px;color:var(--text2);}
+.today-mark{
+  font-size:9px;padding:2px 6px;
+  background:var(--acc);color:#fff;
+  border-radius:10px;font-weight:600;
+  margin-left:auto;
+}
+
+/* ── EMPTY ── */
+.empty{
+  text-align:center;padding:60px 20px;
+  color:var(--text3);
+}
+.empty-icon{font-size:48px;margin-bottom:12px;}
+.empty-text{font-size:14px;}
+
+/* ── LOADING ── */
+.loading{
+  display:flex;align-items:center;justify-content:center;
+  min-height:200px;color:var(--text2);
+  flex-direction:column;gap:12px;
+}
+.spinner{
+  width:32px;height:32px;
+  border:3px solid var(--border2);
+  border-top-color:var(--acc);
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text);border-radius:10px;
+  padding:10px 18px;font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);
+  z-index:500;
+  transition:transform .3s;
+  white-space:nowrap;
+}
+.toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<!-- ── ログイン画面 ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">日の出エリア</div>
+    <div class="login-title">勤務表</div>
+    <div class="login-sub">暗証番号を入力してください</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="numpad">
+      <button class="num-btn" onclick="pinInput('1')">1</button>
+      <button class="num-btn" onclick="pinInput('2')">2</button>
+      <button class="num-btn" onclick="pinInput('3')">3</button>
+      <button class="num-btn" onclick="pinInput('4')">4</button>
+      <button class="num-btn" onclick="pinInput('5')">5</button>
+      <button class="num-btn" onclick="pinInput('6')">6</button>
+      <button class="num-btn" onclick="pinInput('7')">7</button>
+      <button class="num-btn" onclick="pinInput('8')">8</button>
+      <button class="num-btn" onclick="pinInput('9')">9</button>
+      <button class="num-btn empty"></button>
+      <button class="num-btn" onclick="pinInput('0')">0</button>
+      <button class="num-btn del" onclick="pinDel()">⌫</button>
+    </div>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ── メイン画面 ── -->
+<div id="main-screen" style="display:none;">
+  <header>
+    <div class="h-logo">勤務表</div>
+    <button class="h-back" id="backBtn" onclick="showAllView()">← 一覧</button>
+    <div class="h-month-nav">
+      <button class="h-month-btn" id="prevBtn" onclick="changeMonth(-1)">‹</button>
+      <span class="h-month-label" id="monthLabel"></span>
+      <button class="h-month-btn" id="nextBtn" onclick="changeMonth(1)">›</button>
+    </div>
+  </header>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="dept-filter" id="deptFilter">
+    <button class="dept-btn on" onclick="filterDept('all',this)">全員</button>
+    <button class="dept-btn" onclick="filterDept('nyusho',this)">日の出舎</button>
+    <button class="dept-btn" onclick="filterDept('tsuusho',this)">就労</button>
+    <button class="dept-btn" onclick="filterDept('gh',this)">GHのぞみ</button>
+    <button class="dept-btn" onclick="filterDept('jimu',this)">総務</button>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+// 設定（管理者がここを変更する）
+// ════════════════════════════════════════════
+const CONFIG = {
+  PIN: '1234',           // ← 暗証番号（4桁）を変更してください
+  FACILITY: '日の出エリア',
+  // JSONファイルのURL（GitHub PagesにアップしたJSONのURL）
+  // ローカルテスト中はこのファイルと同じフォルダのJSONを読む
+  JSON_URLS: {
+    // 'YYYY-MM': 'https://your-github.io/shift/202606.json'
+  },
+  // ローカルテスト用（JSONファイルをこのHTMLと同じフォルダに置く）
+  LOCAL_JSON_PATH: './',
+};
+
+// ════════════════════════════════════════════
+// シフト定義
+// ════════════════════════════════════════════
+const SM = {
+  nikkin:   {s:'・',   l:'日勤',   c:'#3b82f6',bg:'rgba(59,130,246,.2)', sH:8,sM:30,eH:17,eM:30},
+  hayaban1: {s:'早１', l:'早番１', c:'#10b981',bg:'rgba(16,185,129,.2)', sH:7,sM:0,eH:16,eM:0},
+  hayaban2: {s:'早２', l:'早番２', c:'#059669',bg:'rgba(5,150,105,.18)',  sH:7,sM:0,eH:16,eM:0},
+  osouban1: {s:'遅１', l:'遅番１', c:'#f59e0b',bg:'rgba(245,158,11,.2)', sH:12,sM:0,eH:21,eM:0},
+  osouban2: {s:'遅２', l:'遅番２', c:'#d97706',bg:'rgba(217,119,6,.18)', sH:12,sM:0,eH:21,eM:0},
+  oban:     {s:'オ',   l:'オ番',   c:'#fb923c',bg:'rgba(251,146,60,.2)', sH:11,sM:0,eH:20,eM:0},
+  yakan:    {s:'★',   l:'夜勤',   c:'#ef4444',bg:'rgba(239,68,68,.2)',   sH:17,sM:0,eH:10,eM:0,night:true},
+  ake:      {s:'♦',   l:'明け',   c:'#f97316',bg:'rgba(249,115,22,.18)', auto:true},
+  yakan3:   {s:'☆',   l:'夜勤３', c:'#dc2626',bg:'rgba(220,38,38,.15)'},
+  course_a: {s:'Ⓐ',  l:'Aコース',c:'#2dd4bf',bg:'rgba(45,212,191,.2)'},
+  course_b: {s:'Ⓑ',  l:'Bコース',c:'#06b6d4',bg:'rgba(6,182,212,.18)'},
+  course_c: {s:'Ⓒ',  l:'Cコース',c:'#0891b2',bg:'rgba(8,145,178,.18)'},
+  course_d: {s:'Ⓓ',  l:'Dコース',c:'#0e7490',bg:'rgba(14,116,144,.18)'},
+  course_e: {s:'Ⓔ',  l:'Eコース',c:'#155e75',bg:'rgba(21,94,117,.18)'},
+  gh_yakan: {s:'G★',  l:'GH夜勤', c:'#a78bfa',bg:'rgba(167,139,250,.2)',night:true},
+  gh_ake:   {s:'Ｇ◆', l:'GH明け', c:'#c4b5fd',bg:'rgba(196,181,253,.15)',auto:true},
+  gh_osou:  {s:'Ｇ遅', l:'GH遅番', c:'#8b5cf6',bg:'rgba(139,92,246,.2)'},
+  kyushu:   {s:'／',   l:'公休',   c:'#6b7280',bg:'rgba(107,114,128,.15)',off:true},
+  yukyu:    {s:'有',   l:'有休',   c:'#8b5cf6',bg:'rgba(139,92,246,.15)',off:true},
+  furikyu:  {s:'振休', l:'振休',   c:'#64748b',bg:'rgba(100,116,139,.15)',off:true},
+};
+
+const DEPT_LABEL = {nyusho:'日の出舎',tsuusho:'就労日の出舎',gh:'GHのぞみ',jimu:'総務課'};
+const DEPT_ORDER = ['nyusho','tsuusho','gh','jimu'];
+const DOW = '日月火水木金土';
+
+// ════════════════════════════════════════════
+// 状態
+// ════════════════════════════════════════════
+const today = new Date();
+let curY = today.getFullYear(), curM = today.getMonth();
+let viewMode = 'all';   // 'all' | 'personal'
+let curDept  = 'all';
+let curStaff = null;
+let shiftCache = {};    // 'YYYY-MM' => data
+let staffList  = [];
+
+// 表示可能な月（当月・来月のみ）
+const allowedMonths = [
+  {y: today.getFullYear(), m: today.getMonth()},
+  {y: today.getFullYear() + (today.getMonth()===11?1:0),
+   m: (today.getMonth()+1)%12}
+];
+
+// ════════════════════════════════════════════
+// PIN認証
+// ════════════════════════════════════════════
+let pinBuffer = '';
+
+function pinInput(d){
+  if(pinBuffer.length>=4) return;
+  pinBuffer += d;
+  updatePinDots();
+  if(pinBuffer.length===4) setTimeout(checkPin, 120);
+}
+function pinDel(){
+  pinBuffer = pinBuffer.slice(0,-1);
+  updatePinDots();
+  document.getElementById('loginErr').textContent='';
+}
+function updatePinDots(){
+  for(let i=0;i<4;i++){
+    const dot=document.getElementById('d'+i);
+    dot.className='pin-dot'+(i<pinBuffer.length?' filled':'');
+  }
+}
+function checkPin(){
+  if(pinBuffer===CONFIG.PIN){
+    // 認証成功
+    sessionStorage.setItem('auth','1');
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('main-screen').style.display='block';
+    init();
+  } else {
+    // 失敗
+    for(let i=0;i<4;i++) document.getElementById('d'+i).className='pin-dot error';
+    document.getElementById('loginErr').textContent='暗証番号が違います';
+    setTimeout(()=>{
+      pinBuffer='';
+      updatePinDots();
+    },800);
+  }
+}
+
+// セッション中は再認証不要
+if(sessionStorage.getItem('auth')==='1'){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-screen').style.display='block';
+  setTimeout(init,0);
+}
+
+// ════════════════════════════════════════════
+// 初期化
+// ════════════════════════════════════════════
+function init(){
+  updateMonthLabel();
+  updateMonthNav();
+  loadData(curY, curM);
+}
+
+// ════════════════════════════════════════════
+// データ読み込み
+// ════════════════════════════════════════════
+async function loadData(y, m){
+  const key = `${y}-${String(m+1).padStart(2,'0')}`;
+  if(shiftCache[key]){
+    render();
+    return;
+  }
+  showLoading();
+
+  // URLが設定されていれば fetch、なければローカルJSONを試みる
+  const url = CONFIG.JSON_URLS[key] ||
+              `${CONFIG.LOCAL_JSON_PATH}${y}${String(m+1).padStart(2,'0')}.json`;
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('not found');
+    const data = await res.json();
+    shiftCache[key] = data;
+    if(!staffList.length && data.staff) staffList = data.staff;
+    render();
+  } catch(e){
+    // JSONが見つからない場合はデモデータを表示
+    shiftCache[key] = null;
+    render();
+  }
+}
+
+function showLoading(){
+  document.getElementById('content').innerHTML=
+    '<div class="loading"><div class="spinner"></div><div>読み込み中...</div></div>';
+}
+
+// ════════════════════════════════════════════
+// メイン描画
+// ════════════════════════════════════════════
+function render(){
+  if(viewMode==='personal' && curStaff){
+    renderPersonal();
+  } else {
+    renderAll();
+  }
+  updateMonthNav();
+}
+
+// ── 全員シフト表
+function renderAll(){
+  const key=`${curY}-${String(curM+1).padStart(2,'0')}`;
+  const data=shiftCache[key];
+  document.getElementById('backBtn').classList.remove('show');
+  document.getElementById('deptFilter').style.display='flex';
+
+  if(!data){
+    document.getElementById('content').innerHTML=
+      `<div class="empty"><div class="empty-icon">📅</div>
+       <div class="empty-text">${curY}年${curM+1}月のデータはまだ公開されていません</div></div>`;
+    return;
+  }
+
+  const days=new Date(curY,curM+1,0).getDate();
+  const staff=data.staff||[];
+  const shifts=data.shifts||{};
+  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  const list = curDept==='all' ? staff : staff.filter(s=>s.dept===curDept);
+
+  let h='<div class="tbl-wrap"><table class="st"><thead><tr>';
+  h+=`<th class="name-col" style="left:0;z-index:15">氏名</th>`;
+  for(let d=1;d<=days;d++){
+    const dw=new Date(curY,curM,d).getDay();
+    const cls=dw===0?'sun':dw===6?'sat':'';
+    const dk=`${curY}-${String(curM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=dk===todayStr;
+    h+=`<th class="${cls}${isToday?' today-col':''}">${d}<br><span style="font-size:8px">${DOW[dw]}</span></th>`;
+  }
+  h+=`</tr></thead><tbody>`;
+
+  const depts=DEPT_ORDER.filter(d=>list.some(s=>s.dept===d));
+  depts.forEach(dept=>{
+    const grp=list.filter(s=>s.dept===dept);
+    if(!grp.length) return;
+    h+=`<tr class="dept-sep"><td colspan="${days+1}">${DEPT_LABEL[dept]}　${grp.length}名</td></tr>`;
+    grp.forEach(st=>{
+      h+=`<tr><td class="name-col" style="left:0" onclick="showPersonal(${st.id})">${st.name}</td>`;
+      for(let d=1;d<=days;d++){
+        const dw=new Date(curY,curM,d).getDay();
+        const dk=`${curY}-${String(curM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isToday=dk===todayStr;
+        const colC=dw===0?' sun-c':dw===6?' sat-c':'';
+        const sid=shifts[`${st.id}_${dk}`];
+        const sh=sid?SM[sid]:null;
+        h+=`<td class="cell${colC}${isToday?' today-col':''}">`;
+        if(sh) h+=`<span class="badge" style="background:${sh.bg};color:${sh.c}">${sh.s}</span>`;
+        h+=`</td>`;
+      }
+      h+=`</tr>`;
+    });
+  });
+
+  h+=`</tbody></table></div>`;
+
+  // 今日の列にスクロール
+  document.getElementById('content').innerHTML=h;
+  setTimeout(()=>{
+    const todayCols=document.querySelectorAll('.today-col');
+    if(todayCols.length){
+      todayCols[0].scrollIntoView({inline:'center',behavior:'smooth'});
+    }
+  },100);
+}
+
+// ── 個人シフト表
+function renderPersonal(){
+  const key=`${curY}-${String(curM+1).padStart(2,'0')}`;
+  const data=shiftCache[key];
+  document.getElementById('backBtn').classList.add('show');
+  document.getElementById('deptFilter').style.display='none';
+
+  if(!data||!curStaff){
+    document.getElementById('content').innerHTML='<div class="empty"><div class="empty-text">データがありません</div></div>';
+    return;
+  }
+
+  const st=data.staff.find(s=>s.id===curStaff);
+  if(!st){ showAllView(); return; }
+
+  const days=new Date(curY,curM+1,0).getDate();
+  const shifts=data.shifts||{};
+  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // サマリー集計
+  let nightCnt=0, offCnt=0;
+  for(let d=1;d<=days;d++){
+    const dk=`${curY}-${String(curM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const sid=shifts[`${st.id}_${dk}`];
+    const sh=sid?SM[sid]:null;
+    if(sh?.night) nightCnt++;
+    if(sh?.off) offCnt++;
+  }
+
+  let h=`<div class="personal-wrap">
+    <div class="p-name">${st.name}</div>
+    <div class="p-sub">${DEPT_LABEL[st.dept]||''}　${curY}年${curM+1}月</div>
+    <div class="p-summary">
+      <div class="p-chip night"><span>🌙 夜勤</span><span class="v">${nightCnt}回</span></div>
+      <div class="p-chip off"><span>🏖 公休</span><span class="v">${offCnt}日</span></div>
+    </div>
+    <div class="week-cards">`;
+
+  // 週ごとにカード表示
+  let weekNum=1, weekDays=[];
+  for(let d=1;d<=days;d++){
+    const dw=new Date(curY,curM,d).getDay();
+    weekDays.push(d);
+    if(dw===6||d===days){
+      h+=`<div class="week-card">
+        <div class="week-header">第${weekNum}週</div>`;
+      weekDays.forEach(dd=>{
+        const dw2=new Date(curY,curM,dd).getDay();
+        const dk=`${curY}-${String(curM+1).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+        const isToday=dk===todayStr;
+        const sid=shifts[`${st.id}_${dk}`];
+        const sh=sid?SM[sid]:null;
+        const timeStr=sh&&sh.sH!==undefined
+          ?`${sh.sH}:${String(sh.sM).padStart(2,'0')}〜${sh.eH}:${String(sh.eM).padStart(2,'0')}`
+          :'';
+        const dowCls=dw2===0?'sun':dw2===6?'sat':'';
+        h+=`<div class="day-row${isToday?' today-row':''}">
+          <div class="day-num" style="color:${dw2===0?'var(--red)':dw2===6?'var(--acc)':'var(--text)'}">${dd}</div>
+          <div class="day-name ${dowCls}">${DOW[dw2]}</div>
+          <div class="day-shift">`;
+        if(sh){
+          h+=`<span class="badge" style="background:${sh.bg};color:${sh.c}">${sh.s}</span>
+              <span class="day-shift-label">${sh.l}</span>`;
+          if(timeStr) h+=`<span class="day-time">${timeStr}</span>`;
+        } else {
+          h+=`<span style="color:var(--text3);font-size:12px">—</span>`;
+        }
+        h+=`</div>`;
+        if(isToday) h+=`<span class="today-mark">今日</span>`;
+        h+=`</div>`;
+      });
+      h+=`</div>`;
+      weekNum++; weekDays=[];
+    }
+  }
+
+  h+=`</div></div>`;
+  document.getElementById('content').innerHTML=h;
+
+  // 今日の行にスクロール
+  setTimeout(()=>{
+    const todayRow=document.querySelector('.today-row');
+    if(todayRow) todayRow.scrollIntoView({behavior:'smooth',block:'center'});
+  },100);
+}
+
+// ════════════════════════════════════════════
+// ナビゲーション
+// ════════════════════════════════════════════
+function showPersonal(staffId){
+  curStaff=staffId;
+  viewMode='personal';
+  render();
+}
+function showAllView(){
+  viewMode='all';
+  curStaff=null;
+  render();
+}
+function filterDept(d,el){
+  curDept=d;
+  document.querySelectorAll('.dept-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  renderAll();
+}
+function changeMonth(delta){
+  const idx=allowedMonths.findIndex(a=>a.y===curY&&a.m===curM);
+  const newIdx=idx+delta;
+  if(newIdx<0||newIdx>=allowedMonths.length) return;
+  const {y,m}=allowedMonths[newIdx];
+  curY=y; curM=m;
+  updateMonthLabel();
+  loadData(curY,curM);
+  if(viewMode==='personal') render();
+}
+function updateMonthLabel(){
+  document.getElementById('monthLabel').textContent=`${curY}年${curM+1}月`;
+}
+function updateMonthNav(){
+  const idx=allowedMonths.findIndex(a=>a.y===curY&&a.m===curM);
+  document.getElementById('prevBtn').disabled=idx<=0;
+  document.getElementById('nextBtn').disabled=idx>=allowedMonths.length-1;
+}
+
+// ════════════════════════════════════════════
+// トースト通知
+// ════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+</script>
+</body>
+</html>
